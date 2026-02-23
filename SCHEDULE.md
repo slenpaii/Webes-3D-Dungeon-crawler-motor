@@ -29,52 +29,52 @@ A renderelési ciklus elindítása, kamera és fények beállítása, valamint a
 A belső adatmodell (Map, Tile, Hero, Monster, GameState) implementálása.
 A külső JSON fájlok beolvasása, validálása, és a rácsalapú pálya felépítése a memóriában.
 
-# Mozgás \& Kamera Vezérlés
+## Mozgás \& Kamera Vezérlés
 
 A billentyűzetes bemenetek lekezelése. 
 A rácson belüli mozgás és a 90 fokos kameraforgatás megírása, kiegészítve a célmező járhatóságának validálásával.
 
-# Körökre Osztott Játékmenet Motor
+## Körökre Osztott Játékmenet Motor
 
 A demó projekt fő vezérlőjének megírása, amely a játékos lépéseit és a körváltásokat kezeli.
 Az entitások statisztikáinak és állapotváltozásainak (pl. HP visszatöltés pihenéssel) nyilvántartása.
 
-# Harcrendszer Implementálása
+## Harcrendszer Implementálása
 
 A harci logika automatikus szimulálása.
 A támadó és védőértékek kiértékelése, a harc kimenetelének meghatározása és az életerő frissítése.
 
-# AI \& Látómező Algoritmus
+## AI \& Látómező Algoritmus
 
 A szörnyek viselkedését irányító modul elkészítése.
 
 A látómező kiszámítása a hős észleléséhez, valamint az ezt követő üldözés, keresés és várakozás logikájának létrehozása.
 
-# Procedurális Pályagenerálás
+## Procedurális Pályagenerálás
 
 A rácsalapú labirintus generáló algoritmus megírása az újrajátszhatóság biztosítására.
 
 A kezdőpont, a célpont és a szörnyek pozíciójának automatikus elhelyezése a pályán.
 
-# HUD \& UI Modul
+## HUD \& UI Modul
 
 A felhasználói felület elkészítése, amely megjeleníti a hős életerejét, a körszámot és a statisztikákat.
 
 Az automatikus térkép funkció implementálása, amely csak a felfedezett mezőket mutatja.
 
-# Hibakezelés \& Teljesítmény Optimalizálás
+## Hibakezelés \& Teljesítmény Optimalizálás
 
 A Frustum Culling technika véglegesítése a renderelő modulban, hogy csak a látható elemek rajzolódjanak ki.
 
 A JSON betöltés és a futásidejű működés hibakezelésének beállítása a stabilitás érdekében.
 
-# Tesztelés \& Rendszerintegráció
+## Tesztelés \& Rendszerintegráció
 
 A keretrendszer API-jainak és a demó projekt eseményalapú logikáinak teljes körű összekötése.
 
 Funkcionális és integrációs tesztek futtatása.
 
-# Dokumentáció \& Véglegesítés
+## Dokumentáció \& Véglegesítés
 
 A forráskód végső megtisztítása.
 
