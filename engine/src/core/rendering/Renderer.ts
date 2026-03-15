@@ -6,6 +6,8 @@
 */
 
 import * as THREE from "three";
+import { Map } from "../map/Map";
+import { TileType } from "../map/TileType";
 
 export class Renderer {
 
@@ -18,6 +20,11 @@ private camera    !: THREE.PerspectiveCamera;
 private renderer  !: THREE.WebGLRenderer;
 
 private animationFrameId: number | null = null;
+
+private mapObjects: THREE.Object3D[] = []; // A jelenetben megjelenített térkép objektumok listája
+
+private readonly tileSize: number = 1; // A tile-ok mérete a világban
+private readonly wallHeight: number = 1; // A falak magassága a világban
 
 
 
@@ -35,16 +42,9 @@ constructor(container: HTMLElement) {
     this.cube = this.createDebugCube();
     this.addObject(this.cube);
 
-    // Tesztmap
-    const testMap = [
-        [1, 1, 1, 1, 1],
-        [1, 0, 0, 0, 1],
-        [1, 0, 0, 0, 1],
-        [1, 1, 1, 1, 1]];
-    this.createMapFromArray(testMap);
-
     window.addEventListener("resize", () => this.onResize());
 }
+
 
 
 
@@ -63,7 +63,7 @@ constructor(container: HTMLElement) {
             1000
         );
 
-        this.camera.position.set(5, 5, 5);
+        this.camera.position.set(12, 14, 12);
         this.camera.lookAt(0, 0, 0);
     }
 
@@ -94,6 +94,57 @@ constructor(container: HTMLElement) {
 }
 
 
+
+
+    // A megadott map tile-jait kirajzolja a jelenetbe
+    public renderMap(map: Map): void {
+        this.clearMap(); // Először töröljük a jelenetből az aktuálisan kirajzolt pálya objektumait
+
+        const tiles = map.getTiles();
+        const width = map.width;
+        const height = map.height;
+
+        // A térkép közepére helyezzük a koordináta-rendszert, így a (0,0) koordináta a térkép közepén lesz
+        const offsetX = Math.floor(width / 2);
+        const offsetZ = Math.floor(height / 2);
+
+        // Végigmegyünk a térkép tile-jain és kirajzoljuk őket a jelenetbe
+        for (let z = 0; z < height; z++) {
+            for (let x = 0; x < width; x++) {
+                const tile = tiles[z][x];
+
+                const worldX = x - offsetX;
+                const worldZ = z - offsetZ;
+
+                // Ha a tile padló, akkor kirajzoljuk a padló elemet
+                if (tile.type === TileType.Floor) {
+                    const floorTile = this.createFloorTile(worldX, worldZ);
+                    this.addObject(floorTile);
+                    this.mapObjects.push(floorTile);
+                }
+
+                // Ha a tile fal, akkor először kirajzoljuk a padló elemet, majd a fal elemet, hogy a fal a padló fölött legyen
+                if (tile.type === TileType.Wall) {
+                    const floorTile = this.createFloorTile(worldX, worldZ);
+                    this.addObject(floorTile);
+                    this.mapObjects.push(floorTile);
+
+                    const wallTile = this.createWallTile(worldX, worldZ);
+                    this.addObject(wallTile);
+                    this.mapObjects.push(wallTile);
+                }
+            }
+        }
+    }
+
+    // Eltávolítja a jelenetből az aktuálisan kirajzolt pálya objektumait
+    public clearMap(): void {
+        for (const object of this.mapObjects) {
+            this.removeObject(object);
+        }
+
+        this.mapObjects = [];
+    }
 
     // Új objektum hozzáadása a jelenethez
     public addObject(object: THREE.Object3D): void {
@@ -144,6 +195,7 @@ constructor(container: HTMLElement) {
 
 
 
+
 //TESZTELÉSHEZ KÉSZÜLT SEGÉDFÜGGVÉNYEK
 
     // Tesztkocka létrehozása teszteléshez
@@ -174,72 +226,35 @@ constructor(container: HTMLElement) {
 
     // Padlóelem létrehozása a rácsban
     private createFloorTile(gridX: number, gridZ: number): THREE.Mesh {
-        const geometry = new THREE.BoxGeometry(1, 0.1, 1); // Lapos kocka, padlóelem
+        const geometry = new THREE.BoxGeometry(this.tileSize, 0.1, this.tileSize); // Lapos kocka, padlóelem
         const material = new THREE.MeshStandardMaterial({ color: 0x666666 });
 
         const tile = new THREE.Mesh(geometry, material);
 
-        tile.position.set(gridX, -0.05, gridZ); //tile magasság 0.1, így a mesh középpontja középre kerül (0.05+0.05)
+        tile.position.set(gridX * this.tileSize, -0.05, gridZ * this.tileSize); //tile magasság 0.1, így a mesh középpontja középre kerül (0.05+0.05)
 
         return tile;
     }
 
     private createWallTile(gridX: number, gridZ: number): THREE.Mesh {
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const geometry = new THREE.BoxGeometry(this.tileSize, this.wallHeight, this.tileSize);
         const material = new THREE.MeshStandardMaterial({ color: 0x999999 });
 
         const wall = new THREE.Mesh(geometry, material);
 
-        wall.position.set(gridX, 0.5, gridZ); //wall magasság 1, így a mesh középpontja középre kerül
+        // Wall magasság 1, így a mesh középpontja középre kerül
+        wall.position.set(
+            gridX * this.tileSize,
+            this.wallHeight / 2,
+            gridZ * this.tileSize
+        );
         
+        const edges = new THREE.EdgesGeometry(geometry);
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xdddddd });
+        const edgeLines = new THREE.LineSegments(edges, lineMaterial);
+
+        wall.add(edgeLines);
+
         return wall;
-    }
-
-    // Padló rács létrehozása a megadott szélességgel és magassággal
-    private createFloorGrid(width: number, height: number): void {
-
-        const offsetX = Math.floor(width / 2);
-        const offsetZ = Math.floor(height / 2);
-
-        for (let y = 0; y < height; y++) {
-            for (let x = 0; x < width; x++) {
-                const worldX = x - offsetX;
-                const worldZ = y - offsetZ;
-
-                const tile = this.createFloorTile(worldX, worldZ);
-                this.addObject(tile);
-            }
-        }
-    }
-
-    // Tömbből térkép létrehozása, ahol 0 = padló, 1 = fal
-    private createMapFromArray(mapData: number[][]): void {
-        const height = mapData.length;
-        const width = mapData[0].length;
-
-        const offsetX = Math.floor(width / 2);
-        const offsetY = Math.floor(height / 2);
-
-        for (let z = 0; z < height; z++) {
-            for (let x = 0; x < width; x++) {
-                const cell = mapData[z][x];
-
-                const worldX = x - offsetX;
-                const worldZ = z - offsetY;
-
-                if (cell === 0) {
-                    const floorTile = this.createFloorTile(worldX, worldZ);
-                    this.addObject(floorTile);
-                }
-
-                if (cell === 1) {
-                    const floorTile = this.createFloorTile(worldX, worldZ);
-                    this.addObject(floorTile);
-
-                    const wallTile = this.createWallTile(worldX, worldZ);
-                    this.addObject(wallTile);
-                }
-            }
-        }
     }
 }
