@@ -8,12 +8,14 @@
 import * as THREE from "three";
 import { Map } from "../map/Map";
 import { TileType } from "../map/TileType";
+import { Hero } from "../game/Hero";
+import type { Monster } from "../game/Monster";
 
 export class Renderer {
 
 private container : HTMLElement;
 
-private cube      !: THREE.Mesh; // Tesztkocka a renderelés teszteléséhez
+//private cube      !: THREE.Mesh; // Tesztkocka a renderelés teszteléséhez
 
 private scene     !: THREE.Scene;
 private camera    !: THREE.PerspectiveCamera;
@@ -22,6 +24,8 @@ private renderer  !: THREE.WebGLRenderer;
 private animationFrameId: number | null = null;
 
 private mapObjects: THREE.Object3D[] = []; // A jelenetben megjelenített térkép objektumok listája
+private heroObject: THREE.Object3D | null = null; // A jelenetben megjelenített hős objektuma
+private monsterObjects: THREE.Object3D[] = []; // A jelenetben megjelenített szörny objektumok listája
 
 private readonly tileSize: number = 1; // A tile-ok mérete a világban
 private readonly wallHeight: number = 1; // A falak magassága a világban
@@ -39,8 +43,8 @@ constructor(container: HTMLElement) {
     this.setupHelpers();
 
     // Tesztkocka
-    this.cube = this.createDebugCube();
-    this.addObject(this.cube);
+    //this.cube = this.createDebugCube();
+    //this.addObject(this.cube);
 
     window.addEventListener("resize", () => this.onResize());
 }
@@ -63,7 +67,7 @@ constructor(container: HTMLElement) {
             1000
         );
 
-        this.camera.position.set(12, 14, 12);
+        this.camera.position.set(10, 20, 10); // Kamera pozíciójának beállítása, hogy a térkép jól látható legyen
         this.camera.lookAt(0, 0, 0);
     }
 
@@ -89,12 +93,90 @@ constructor(container: HTMLElement) {
 
     // Segédeszközök létrehozása
     private setupHelpers(): void {
-        const gridHelper = new THREE.GridHelper(20, 20);
+        const gridHelper = new THREE.GridHelper(30, 30);
         this.addObject(gridHelper);
 }
 
 
 
+    // A hős kirajzolása a jelenetbe
+    public renderHero(hero: Hero, map: Map): void {
+        // Törlődik a jelenetből az aktuálisan kirajzolt hős objektum
+        if (this.heroObject !== null) {
+            this.removeObject(this.heroObject);
+            this.heroObject = null;
+        }
+
+        const heroX = hero.getX();
+        const heroY = hero.getY();
+
+        const offsetX = Math.floor(map.width / 2);
+        const offsetZ = Math.floor(map.height / 2);
+
+        const worldX = (heroX - offsetX) * this.tileSize;
+        const worldZ = (heroY - offsetZ) * this.tileSize;
+
+        //Hős megjelenítése (teszt jelleggel)
+        const geometry = new THREE.CylinderGeometry(
+            this.tileSize * 0.3,
+            this.tileSize * 0.3,
+            this.tileSize,
+            16
+        );
+        const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+
+        const heroMesh = new THREE.Mesh(geometry, material);
+
+        heroMesh.position.set(
+            worldX,
+            this.tileSize / 2,
+            worldZ
+        );
+
+        this.addObject(heroMesh);
+        this.heroObject = heroMesh;
+    }
+
+    // A szörny kirajzolása a jelenetbe
+    public renderMonster(monster: Monster, map: Map): void {
+            this.clearMonsters(); // Törlődnek a jelenetből az aktuálisan kirajzolt szörny objektumok, hogy csak a megadott szörny legyen kirajzolva
+            const monsterX = monster.getX();
+            const monsterY = monster.getY();
+
+            const offsetX = Math.floor(map.width / 2);
+            const offsetZ = Math.floor(map.height / 2);
+
+            const worldX = (monsterX - offsetX) * this.tileSize;
+            const worldZ = (monsterY - offsetZ) * this.tileSize;
+
+            // Szörny megjelenítése (teszt jelleggel)
+            const geometry = new THREE.ConeGeometry(
+                this.tileSize * 0.4,
+                this.tileSize,
+                16
+            );
+            const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+
+            const monsterMesh = new THREE.Mesh(geometry, material);
+
+            monsterMesh.position.set(
+                worldX,
+                this.tileSize / 2,
+                worldZ
+            );
+
+            this.addObject(monsterMesh);
+            this.monsterObjects.push(monsterMesh);
+    }
+
+    // A jelenetből eltávolítja az összes szörny objektumot
+    public clearMonsters(): void {
+        for (const monsterObject of this.monsterObjects) {
+            this.removeObject(monsterObject);
+        }
+
+        this.monsterObjects = [];
+    }
 
     // A megadott map tile-jait kirajzolja a jelenetbe
     public renderMap(map: Map): void {
@@ -167,7 +249,7 @@ constructor(container: HTMLElement) {
 
             this.animationFrameId = requestAnimationFrame(animate);
 
-            //this.updateDebug()
+            //this.updateDebug() // Tesztkocka forgatása teszteléshez
 
             this.render();
     };
@@ -199,7 +281,7 @@ constructor(container: HTMLElement) {
 //TESZTELÉSHEZ KÉSZÜLT SEGÉDFÜGGVÉNYEK
 
     // Tesztkocka létrehozása teszteléshez
-    private createDebugCube(): THREE.Mesh {
+    /*private createDebugCube(): THREE.Mesh {
         const geometry = new THREE.BoxGeometry(1, 1, 1);
         const material = new THREE.MeshStandardMaterial({ color: 0xDAA06D });
 
@@ -214,15 +296,13 @@ constructor(container: HTMLElement) {
         cube.add(edgeLines);
 
     return cube;
-}
+}*/
 
-    // Tesztkocka forgatása teszteléshez
+    // Tesztkocka forgatása teszteléshez---------------------------
     /*private updateDebug(): void {
-
         this.cube.rotation.x += 0.01;
         this.cube.rotation.y += 0.01;
-
-}*/
+    }*/
 
     // Padlóelem létrehozása a rácsban
     private createFloorTile(gridX: number, gridZ: number): THREE.Mesh {
