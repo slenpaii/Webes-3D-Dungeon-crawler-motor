@@ -5,6 +5,10 @@
     valamint a render ciklust.
 */
 
+// TODO: window.innerWidth és window.innerHeight -> this.container.clientWidth onResize container-alapú méretezésre refaktor
+// TODO: több helyen használt - duplikált eljárások (pl.: rendermonster,calculateCameraTarget) -> refaktor (gridToWorldPosition helper)
+// TODO: renderMonster későbbi átalakítása több szörny kezelésére refaktor
+
 import * as THREE from "three";
 import { Map } from "../map/Map";
 import { TileType } from "../map/TileType";
@@ -15,20 +19,29 @@ export class Renderer {
 
 private container : HTMLElement;
 
-//private cube      !: THREE.Mesh; // Tesztkocka a renderelés teszteléséhez
+private scene!: THREE.Scene;
+private camera!: THREE.PerspectiveCamera;
+private renderer!: THREE.WebGLRenderer;
 
-private scene     !: THREE.Scene;
-private camera    !: THREE.PerspectiveCamera;
-private renderer  !: THREE.WebGLRenderer;
-
-private animationFrameId: number | null = null;
+private animationFrameId: number | null = null; // Az aktuális requestAnimationFrame ID-ja, hogy szükség esetén le lehessen állítani a render ciklust
 
 private mapObjects: THREE.Object3D[] = []; // A jelenetben megjelenített térkép objektumok listája
-private heroObject: THREE.Object3D | null = null; // A jelenetben megjelenített hős objektuma
 private monsterObjects: THREE.Object3D[] = []; // A jelenetben megjelenített szörny objektumok listája
 
 private readonly tileSize: number = 1; // A tile-ok mérete a világban
 private readonly wallHeight: number = 1; // A falak magassága a világban
+
+
+// Kamera mozgásához kapcsolódó változók
+private isCameraMoving: boolean = false; // Jelző, hogy a kamera éppen mozog-e
+private cameraMoveStartTime: number = 0; // A kamera mozgásának kezdőideje
+private readonly cameraMoveDuration: number = 200; // A kamera mozgásának időtartama (ms)
+
+private cameraStartPosition: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának kezdő pozíciója
+private cameraTargetPosition: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának cél pozíciója
+private cameraStartLookAt: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának kezdő nézési pozíciója
+private cameraTargetLookAt: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának cél nézési pozíciója
+
 
 
 
@@ -41,10 +54,6 @@ constructor(container: HTMLElement) {
 
     this.setupLights();
     this.setupHelpers();
-
-    // Tesztkocka
-    //this.cube = this.createDebugCube();
-    //this.addObject(this.cube);
 
     window.addEventListener("resize", () => this.onResize());
 }
@@ -67,7 +76,8 @@ constructor(container: HTMLElement) {
             1000
         );
 
-        this.camera.position.set(10, 20, 10); // Kamera pozíciójának beállítása, hogy a térkép jól látható legyen
+        // Kezdeti kameraállapot; indulás után az updateCamera() a hero nézetéhez igazítja.
+        this.camera.position.set(0, 20, 10); 
         this.camera.lookAt(0, 0, 0);
     }
 
@@ -95,18 +105,11 @@ constructor(container: HTMLElement) {
     private setupHelpers(): void {
         const gridHelper = new THREE.GridHelper(30, 30);
         this.addObject(gridHelper);
-}
+    }
 
-
-
-    // A hős kirajzolása a jelenetbe
-    public renderHero(hero: Hero, map: Map): void {
-        // Törlődik a jelenetből az aktuálisan kirajzolt hős objektum
-        if (this.heroObject !== null) {
-            this.removeObject(this.heroObject);
-            this.heroObject = null;
-        }
-
+    // Kamera cél pozíciójának kiszámítása
+    private calculateCameraTarget(hero: Hero, map: Map, direction: number): 
+    { position: THREE.Vector3, lookAt: THREE.Vector3 } {
         const heroX = hero.getX();
         const heroY = hero.getY();
 
@@ -116,58 +119,127 @@ constructor(container: HTMLElement) {
         const worldX = (heroX - offsetX) * this.tileSize;
         const worldZ = (heroY - offsetZ) * this.tileSize;
 
-        //Hős megjelenítése (teszt jelleggel)
-        const geometry = new THREE.CylinderGeometry(
-            this.tileSize * 0.3,
-            this.tileSize * 0.3,
+        const eyeHeight = 0.7; // Kamera magassága a hősön
+        const lookHeight = eyeHeight - 0.3;
+        const lookDistance = this.tileSize * 2; // Milyen messzire nézzen a kamera a hőstől
+
+        let lookX = worldX;
+        let lookZ = worldZ;
+
+        switch (direction) {
+            case 0: // Észak
+                lookZ = worldZ - lookDistance;
+                break;
+            case 1: // Kelet
+                lookX = worldX + lookDistance;
+                break;
+            case 2: // Dél
+                lookZ = worldZ + lookDistance;
+                break;
+            case 3: // Nyugat
+                lookX = worldX - lookDistance;
+                break;
+        }
+        return {
+            position: new THREE.Vector3(worldX, eyeHeight, worldZ),
+            lookAt: new THREE.Vector3(lookX, lookHeight, lookZ)
+        }
+    }
+
+    // A kamera animációjának frissítése minden frameben
+    private updateCameraAnimation(): void {
+        if (!this.isCameraMoving) {
+            return;
+        }
+
+        const elapsed = performance.now() - this.cameraMoveStartTime;
+        const progress = Math.min(elapsed / this.cameraMoveDuration, 1);
+
+        const currentPosition = new THREE.Vector3().lerpVectors(
+            this.cameraStartPosition,
+            this.cameraTargetPosition,
+            progress
+        );
+
+        const currentLookAt = new THREE.Vector3().lerpVectors(
+            this.cameraStartLookAt,
+            this.cameraTargetLookAt,
+            progress
+        );
+
+        this.camera.position.copy(currentPosition);
+        this.camera.lookAt(currentLookAt);
+
+        if (progress >= 1) {
+            this.isCameraMoving = false;
+        }
+    }
+
+
+
+    // A hős kirajzolása a jelenetbe
+    public renderHero(_hero: Hero, _map: Map): void {
+        // First-person nézetben a hero modell jelenleg nem kerül kirajzolásra.
+
+    }
+
+    // A szörny kirajzolása a jelenetbe
+    public renderMonster(monster: Monster, map: Map): void {
+        this.clearMonsters(); // Törlődnek a jelenetből az aktuálisan kirajzolt szörny objektumok, hogy csak a megadott szörny legyen kirajzolva
+        const monsterX = monster.getX();
+        const monsterY = monster.getY();
+
+        const offsetX = Math.floor(map.width / 2);
+        const offsetZ = Math.floor(map.height / 2);
+
+        const worldX = (monsterX - offsetX) * this.tileSize;
+        const worldZ = (monsterY - offsetZ) * this.tileSize;
+
+        // Szörny megjelenítése (teszt jelleggel)
+        const geometry = new THREE.ConeGeometry(
+            this.tileSize * 0.4,
             this.tileSize,
             16
         );
-        const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
 
-        const heroMesh = new THREE.Mesh(geometry, material);
+        const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
 
-        heroMesh.position.set(
+        const monsterMesh = new THREE.Mesh(geometry, material);
+
+        monsterMesh.position.set(
             worldX,
             this.tileSize / 2,
             worldZ
         );
 
-        this.addObject(heroMesh);
-        this.heroObject = heroMesh;
+        this.addObject(monsterMesh);
+        this.monsterObjects.push(monsterMesh);    
     }
 
-    // A szörny kirajzolása a jelenetbe
-    public renderMonster(monster: Monster, map: Map): void {
-            this.clearMonsters(); // Törlődnek a jelenetből az aktuálisan kirajzolt szörny objektumok, hogy csak a megadott szörny legyen kirajzolva
-            const monsterX = monster.getX();
-            const monsterY = monster.getY();
+    // Új kamera-célállapot beállítása és a smooth animáció elindítása
+    public updateCamera(hero: Hero, map: Map, direction: number): void {
+        const target = this.calculateCameraTarget(hero, map, direction);
 
-            const offsetX = Math.floor(map.width / 2);
-            const offsetZ = Math.floor(map.height / 2);
+        this.cameraStartPosition.copy(this.camera.position);
+        this.cameraTargetPosition.copy(target.position);
 
-            const worldX = (monsterX - offsetX) * this.tileSize;
-            const worldZ = (monsterY - offsetZ) * this.tileSize;
+        const currentLookDirection = new THREE.Vector3();
+        this.camera.getWorldDirection(currentLookDirection);
 
-            // Szörny megjelenítése (teszt jelleggel)
-            const geometry = new THREE.ConeGeometry(
-                this.tileSize * 0.4,
-                this.tileSize,
-                16
-            );
-            const material = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+        const currentLookAt = this.camera.position.clone().add(currentLookDirection);
+        this.cameraStartLookAt.copy(currentLookAt);
+        this.cameraTargetLookAt.copy(target.lookAt);
 
-            const monsterMesh = new THREE.Mesh(geometry, material);
-
-            monsterMesh.position.set(
-                worldX,
-                this.tileSize / 2,
-                worldZ
-            );
-
-            this.addObject(monsterMesh);
-            this.monsterObjects.push(monsterMesh);
+        this.cameraMoveStartTime = performance.now();
+        this.isCameraMoving = true;
     }
+
+    // A kamera mozog-e éppen
+    public isMoving(): boolean{
+        return this.isCameraMoving;
+    }
+
+
 
     // A jelenetből eltávolítja az összes szörny objektumot
     public clearMonsters(): void {
@@ -251,6 +323,7 @@ constructor(container: HTMLElement) {
 
             //this.updateDebug() // Tesztkocka forgatása teszteléshez
 
+            this.updateCameraAnimation(); // Kamera animációjának frissítése, ha a kamera éppen mozog
             this.render();
     };
         animate();
@@ -278,31 +351,7 @@ constructor(container: HTMLElement) {
 
 
 
-//TESZTELÉSHEZ KÉSZÜLT SEGÉDFÜGGVÉNYEK
-
-    // Tesztkocka létrehozása teszteléshez
-    /*private createDebugCube(): THREE.Mesh {
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const material = new THREE.MeshStandardMaterial({ color: 0xDAA06D });
-
-        const cube = new THREE.Mesh(geometry, material);
-
-        cube.position.y = 0.5;
-
-        const edges = new THREE.EdgesGeometry(geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xFAF9F6 });
-        const edgeLines = new THREE.LineSegments(edges, lineMaterial);
-
-        cube.add(edgeLines);
-
-    return cube;
-}*/
-
-    // Tesztkocka forgatása teszteléshez---------------------------
-    /*private updateDebug(): void {
-        this.cube.rotation.x += 0.01;
-        this.cube.rotation.y += 0.01;
-    }*/
+// BELSŐ SEGÉDFÜGGVÉNYEK
 
     // Padlóelem létrehozása a rácsban
     private createFloorTile(gridX: number, gridZ: number): THREE.Mesh {
@@ -316,6 +365,7 @@ constructor(container: HTMLElement) {
         return tile;
     }
 
+    //Falelem létrehozása a rácsban
     private createWallTile(gridX: number, gridZ: number): THREE.Mesh {
         const geometry = new THREE.BoxGeometry(this.tileSize, this.wallHeight, this.tileSize);
         const material = new THREE.MeshStandardMaterial({ color: 0x999999 });
