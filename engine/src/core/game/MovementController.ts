@@ -23,7 +23,7 @@ export class MovementController {
 
 
     public handleInput(key: string): boolean {
-        if (this.renderer.isMoving())   {
+        if (this.renderer.isMoving()) {
             return false;
         }
         
@@ -41,7 +41,6 @@ export class MovementController {
         }
 
         return false;
-
     }
 
     // Előre lépés

@@ -14,7 +14,6 @@ import { Map } from "../map/Map";
 import { TileType } from "../map/TileType";
 import { Hero } from "../game/Hero";
 import type { Monster } from "../game/Monster";
-import { ceil } from "three/tsl";
 
 export class Renderer {
 
@@ -111,10 +110,10 @@ constructor(container: HTMLElement) {
     }
 
     // Segédeszközök létrehozása
-    private setupHelpers(): void {
+    /*private setupHelpers(): void {
         const gridHelper = new THREE.GridHelper(30, 30);
         this.addObject(gridHelper);
-    }
+    }*/
 
     // Kamera cél pozíciójának kiszámítása
     private calculateCameraTarget(hero: Hero, map: Map, direction: number): 
