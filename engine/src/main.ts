@@ -13,12 +13,13 @@ const renderer = new Renderer(container);
 const mapLoader = new MapLoader();
 const map = mapLoader.loadFromData(testMapData);
 
-const hero = new Hero(1, 1, 20, 5, 2);
+const hero = new Hero(3, 1, 20, 5, 2);
 const monster = new Monster(5, 3, 10, 4, 1);
 
 const gameState = new GameState(map, hero, [monster]);
 
-const movementController = new MovementController(gameState, renderer);
+const initialDirection = 2;
+const movementController = new MovementController(gameState, renderer, initialDirection);
 
 console.log("Betöltött map:", map);
 console.log("Map mérete:", map.width, "x", map.height);
@@ -30,7 +31,7 @@ renderer.renderHero(gameState.getHero(), gameState.getMap());
 renderer.renderMonster(gameState.getMonsters()[0], gameState.getMap());
 
 // TODO: induló direction kiszervezése közös konstansba / enumba
-renderer.updateCamera(gameState.getHero(), gameState.getMap(), 0);
+renderer.updateCamera(gameState.getHero(), gameState.getMap(), movementController.getDirection());
 
 window.addEventListener("keydown", (event) => {
     if (event.repeat) {

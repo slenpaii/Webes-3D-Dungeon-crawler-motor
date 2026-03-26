@@ -14,6 +14,7 @@ import { Map } from "../map/Map";
 import { TileType } from "../map/TileType";
 import { Hero } from "../game/Hero";
 import type { Monster } from "../game/Monster";
+import { ceil } from "three/tsl";
 
 export class Renderer {
 
@@ -31,7 +32,6 @@ private monsterObjects: THREE.Object3D[] = []; // A jelenetben megjelenített sz
 private readonly tileSize: number = 1; // A tile-ok mérete a világban
 private readonly wallHeight: number = 1; // A falak magassága a világban
 
-
 // Kamera mozgásához kapcsolódó változók
 private isCameraMoving: boolean = false; // Jelző, hogy a kamera éppen mozog-e
 private cameraMoveStartTime: number = 0; // A kamera mozgásának kezdőideje
@@ -41,6 +41,8 @@ private cameraStartPosition: THREE.Vector3 = new THREE.Vector3(); // A kamera mo
 private cameraTargetPosition: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának cél pozíciója
 private cameraStartLookAt: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának kezdő nézési pozíciója
 private cameraTargetLookAt: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának cél nézési pozíciója
+
+private torchLight!: THREE.PointLight;
 
 
 
@@ -53,7 +55,7 @@ constructor(container: HTMLElement) {
     this.setupRenderer();
 
     this.setupLights();
-    this.setupHelpers();
+    //this.setupHelpers();
 
     window.addEventListener("resize", () => this.onResize());
 }
@@ -93,12 +95,19 @@ constructor(container: HTMLElement) {
 
     // Fények létrehozása
     private setupLights(): void {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1); // 0 -> semmi nem látható | 1 -> minden látszik
         this.addObject(ambientLight);
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        directionalLight.position.set(5, 5, 5);
-        this.addObject(directionalLight);
+        //Globális fény
+        //const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        //directionalLight.position.set(5, 5, 5);
+        //this.addObject(directionalLight);
+
+        this.torchLight = new THREE.PointLight(0xffaa55, 1.2, 5);
+        this.torchLight.position.set(0, 0, 0);
+
+        this.camera.add(this.torchLight);
+        this.scene.add(this.camera);
     }
 
     // Segédeszközök létrehozása
@@ -272,20 +281,33 @@ constructor(container: HTMLElement) {
 
                 // Ha a tile padló, akkor kirajzoljuk a padló elemet
                 if (tile.type === TileType.Floor) {
+                    //Padló
                     const floorTile = this.createFloorTile(worldX, worldZ);
                     this.addObject(floorTile);
                     this.mapObjects.push(floorTile);
+
+                    //Plafon
+                    const ceilingTile = this.createCeilingTile(worldX,worldZ);
+                    this.addObject(ceilingTile);
+                    this.mapObjects.push(ceilingTile);
                 }
 
                 // Ha a tile fal, akkor először kirajzoljuk a padló elemet, majd a fal elemet, hogy a fal a padló fölött legyen
                 if (tile.type === TileType.Wall) {
+                    //Padló
                     const floorTile = this.createFloorTile(worldX, worldZ);
                     this.addObject(floorTile);
                     this.mapObjects.push(floorTile);
 
+                    //Fal
                     const wallTile = this.createWallTile(worldX, worldZ);
                     this.addObject(wallTile);
                     this.mapObjects.push(wallTile);
+
+                    //Plafon
+                    const ceilingTile = this.createCeilingTile(worldX,worldZ);
+                    this.addObject(ceilingTile);
+                    this.mapObjects.push(ceilingTile);
                 }
             }
         }
@@ -360,7 +382,11 @@ constructor(container: HTMLElement) {
 
         const tile = new THREE.Mesh(geometry, material);
 
-        tile.position.set(gridX * this.tileSize, -0.05, gridZ * this.tileSize); //tile magasság 0.1, így a mesh középpontja középre kerül (0.05+0.05)
+        tile.position.set(
+            gridX * this.tileSize,
+            -0.05,
+            gridZ * this.tileSize
+        ); //tile magasság 0.1, így a mesh középpontja középre kerül (0.05+0.05)
 
         return tile;
     }
@@ -379,12 +405,27 @@ constructor(container: HTMLElement) {
             gridZ * this.tileSize
         );
         
-        const edges = new THREE.EdgesGeometry(geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xdddddd });
-        const edgeLines = new THREE.LineSegments(edges, lineMaterial);
-
-        wall.add(edgeLines);
+        //const edges = new THREE.EdgesGeometry(geometry);
+        //const lineMaterial = new THREE.LineBasicMaterial({ color: 0xdddddd });
+        //const edgeLines = new THREE.LineSegments(edges, lineMaterial);
+        //wall.add(edgeLines);
 
         return wall;
+    }
+
+    // Plafonelem létrehozása a rácsban
+    private createCeilingTile(gridX: number, gridZ: number): THREE.Mesh {
+        const geometry = new THREE.BoxGeometry(this.tileSize, 0.1, this.tileSize);
+        const material = new THREE.MeshStandardMaterial({ color: 0x444444 });
+
+        const tile = new THREE.Mesh(geometry, material);
+
+        tile.position.set(
+            gridX * this.tileSize,
+            this.wallHeight + 0.05, //fal teteje
+            gridZ * this.tileSize
+        );
+
+        return tile;
     }
 }
