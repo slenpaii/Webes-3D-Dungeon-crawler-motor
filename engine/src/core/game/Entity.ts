@@ -42,4 +42,19 @@ export class Entity {
         this.y = y;
     }
 
+
+    
+    // Egyéb metódusok
+    public takeDamage(amount: number): void {
+        this.hp -= amount;
+
+        if (this.hp < 0) {
+            this.hp = 0;
+        }
+    }
+
+    public isDead(): boolean {
+        return this.hp <= 0;
+    }
+
 }

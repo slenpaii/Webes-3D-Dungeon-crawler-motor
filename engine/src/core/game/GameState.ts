@@ -38,4 +38,9 @@ export class GameState {
         this.turnCount++;
     }
 
+    // Szörny eltávolítása a játékból (halál esetén)
+    public removeMonster(monster: Monster): void {
+        this.monsters = this.monsters.filter(currentMonster => currentMonster !== monster);
+    }
+
 }

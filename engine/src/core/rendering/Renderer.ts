@@ -62,6 +62,7 @@ constructor(container: HTMLElement) {
 
 
 
+
     // Jelenet létrehozása
     private setupScene(): void {
         this.scene = new THREE.Scene();
@@ -94,13 +95,8 @@ constructor(container: HTMLElement) {
 
     // Fények létrehozása
     private setupLights(): void {
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.1); // 0 -> semmi nem látható | 1 -> minden látszik
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.08); // 0 -> semmi nem látható | 1 -> minden látszik
         this.addObject(ambientLight);
-
-        //Globális fény
-        //const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
-        //directionalLight.position.set(5, 5, 5);
-        //this.addObject(directionalLight);
 
         this.torchLight = new THREE.PointLight(0xffaa55, 1.2, 5);
         this.torchLight.position.set(0, 0, 0);
@@ -111,7 +107,7 @@ constructor(container: HTMLElement) {
 
     // Segédeszközök létrehozása
     /*private setupHelpers(): void {
-        const gridHelper = new THREE.GridHelper(30, 30);
+        const gridHelper = new THREE.GridHelper(50, 50);
         this.addObject(gridHelper);
     }*/
 
@@ -251,6 +247,7 @@ constructor(container: HTMLElement) {
 
     // A jelenetből eltávolítja az összes szörny objektumot
     public clearMonsters(): void {
+        console.log("clearMonsters meghívva, db:", this.monsterObjects.length);
         for (const monsterObject of this.monsterObjects) {
             this.removeObject(monsterObject);
         }
@@ -342,8 +339,6 @@ constructor(container: HTMLElement) {
 
             this.animationFrameId = requestAnimationFrame(animate);
 
-            //this.updateDebug() // Tesztkocka forgatása teszteléshez
-
             this.updateCameraAnimation(); // Kamera animációjának frissítése, ha a kamera éppen mozog
             this.render();
     };
@@ -394,7 +389,6 @@ constructor(container: HTMLElement) {
     private createWallTile(gridX: number, gridZ: number): THREE.Mesh {
         const geometry = new THREE.BoxGeometry(this.tileSize, this.wallHeight, this.tileSize);
         const material = new THREE.MeshStandardMaterial({ color: 0x999999 });
-
         const wall = new THREE.Mesh(geometry, material);
 
         // Wall magasság 1, így a mesh középpontja középre kerül

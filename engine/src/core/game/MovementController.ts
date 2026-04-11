@@ -4,6 +4,7 @@
 import { GameState } from "./GameState";
 import { Renderer } from "../rendering/Renderer";
 
+export type MovementResult = "MOVED" | "TURNED" | "BLOCKED";
 export class MovementController {
     private gameState: GameState;
     private renderer: Renderer;
@@ -22,9 +23,9 @@ export class MovementController {
     }
 
 
-    public handleInput(key: string): boolean {
+    public handleInput(key: string): MovementResult {
         if (this.renderer.isMoving()) {
-            return false;
+            return "BLOCKED";
         }
         
         if (key === "w") {
@@ -40,11 +41,11 @@ export class MovementController {
             return this.turnRight();
         }
 
-        return false;
+        return "BLOCKED";
     }
 
     // Előre lépés
-    private moveForward(): boolean {
+    private moveForward(): MovementResult {
         const hero = this.gameState.getHero();
         const map = this.gameState.getMap();
 
@@ -69,7 +70,7 @@ export class MovementController {
                 break;
             default:
                 console.warn("Ismeretlen irány:", this.direction);
-                return false;
+                return "BLOCKED";
         }
 
         // Megnézi, hogy járható-e a target tile (nincs-e fal/monster)
@@ -77,14 +78,14 @@ export class MovementController {
             hero.setPosition(targetX, targetY);
             this.renderer.renderHero(hero, map);
             this.renderer.updateCamera(hero, map, this.direction);
-            return true;
+            return "MOVED";
         }
 
-        return false;
+        return "BLOCKED";
     }
 
     // Hátra lépés
-    private moveBackward(): boolean {
+    private moveBackward(): MovementResult {
         const hero = this.gameState.getHero();
         const map = this.gameState.getMap();
 
@@ -109,7 +110,7 @@ export class MovementController {
                 break;
             default:
                 console.warn("Ismeretlen irány:", this.direction);
-                return false;
+                return "BLOCKED";
         }
         
         // Megnézi, hogy járható-e a target tile (nincs-e fal/monster)
@@ -117,32 +118,32 @@ export class MovementController {
             hero.setPosition(targetX, targetY);
             this.renderer.renderHero(hero, map);
             this.renderer.updateCamera(hero, map, this.direction);
-            return true;
+            return "MOVED";
         }
 
-        return false;
+        return "BLOCKED";
     }
 
     // Balra fordulás
-    private turnLeft(): boolean {
+    private turnLeft(): MovementResult {
         const hero = this.gameState.getHero();
         const map = this.gameState.getMap();
         
         this.direction = (this.direction + 3) % 4; // Balra fordulás
         this.renderer.updateCamera(hero, map, this.direction);
 
-        return true;
+        return "TURNED";
     }
     
     // Jobbra fordulás
-    private turnRight(): boolean {
+    private turnRight(): MovementResult {
         const hero = this.gameState.getHero();
         const map = this.gameState.getMap();
 
         this.direction = (this.direction + 1) % 4; // Jobbra fordulás
         this.renderer.updateCamera(hero, map, this.direction);
 
-        return true;
+        return "TURNED";
     }
 
     private isMonsterAt(x: number, y: number): boolean {

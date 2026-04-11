@@ -36,6 +36,7 @@ renderer.renderMonster(gameState.getMonsters()[0], gameState.getMap());
 // TODO: induló direction kiszervezése közös konstansba / enumba
 renderer.updateCamera(gameState.getHero(), gameState.getMap(), movementController.getDirection());
 
+
 window.addEventListener("keydown", (event) => {
     if (event.repeat) {
         return;

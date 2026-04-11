@@ -3,6 +3,8 @@ import { MovementController } from "../core/game/MovementController";
 import { Renderer } from "../core/rendering/Renderer";
 import { Hero } from "../core/game/Hero";
 import { Monster } from "../core/game/Monster";
+import { CombatSystem } from "./combat/CombatSystem";
+import type { MovementResult } from "../core/game/MovementController";
 
 type TurnPhase = "PLAYER_INPUT" | "WAITING_FOR_PLAYER_ANIMATION" | "ENEMY_TURN";
 
@@ -11,26 +13,31 @@ export class TurnController {
     private movementController: MovementController;
     private renderer: Renderer;
     private phase: TurnPhase;
+    private combatSystem: CombatSystem;
+    private lastMovementResult: MovementResult = "BLOCKED";
 
     constructor(gameState: GameState, movementController: MovementController, renderer: Renderer) {
         this.gameState = gameState;
         this.movementController = movementController;
         this.renderer = renderer;
         this.phase = "PLAYER_INPUT";
+        this.combatSystem = new CombatSystem();
     }
 
     public getPhase(): TurnPhase {
         return this.phase;
     }
 
+
     public handleInput(key: string): void {
         if (this.phase !== "PLAYER_INPUT") {
             return;
         }
 
-        const actionPerformed = this.movementController.handleInput(key);
+        const movementResult = this.movementController.handleInput(key);
+        this.lastMovementResult = movementResult;
         
-        if (actionPerformed) {
+        if (movementResult !== "BLOCKED") {
             this.phase = "WAITING_FOR_PLAYER_ANIMATION";
         }
     }
@@ -44,12 +51,14 @@ export class TurnController {
             return;
         }
 
+        if (this.tryHeroCombat()) {
+            return;
+        }
+
         this.phase = "ENEMY_TURN";
         this.processEnemyTurn();
 
-        this.gameState.incrementTurnCount();
-        console.log("Kör vége. Aktuális kör: ", this.gameState.getTurnCount());
-        this.phase = "PLAYER_INPUT";
+        this.endTurn();
     }
 
     // TODO: ideiglenes enemy AI, később külön rendszerbe szervezni
@@ -72,10 +81,6 @@ export class TurnController {
 
         if (distance > 5) {
             console.log("Enemy túl messze van, nem aktiválódik.\n", "distance = ", distance);
-            return;
-        }
-
-        if (this.resetMonsterIfAdjacent(monster, hero, map)) {
             return;
         }
 
@@ -144,9 +149,12 @@ export class TurnController {
         }
 
         // 4. render
-        this.renderer.renderMonster(monster, map);
+        if (!monster.isDead()) {
+            this.renderer.renderMonster(monster, map);
+        }
 
-        if (this.resetMonsterIfAdjacent(monster, hero, map)) {
+        // Harc ha a szörny lép felé
+        if (this.tryCombat(monster, hero)) {
             return;
         }
 
@@ -156,18 +164,55 @@ export class TurnController {
         );
     }
 
-    private resetMonsterIfAdjacent(monster: Monster, hero: Hero, map: any): boolean {
+    // Szomszédos-e a két karakter (abszolút távolság 1)
+    private isAdjacent(monster: Monster, hero: Hero): boolean {
         const distance =
             Math.abs(hero.getX() - monster.getX()) +
             Math.abs(hero.getY() - monster.getY());
 
-        if (distance !== 1) {
+        return distance === 1;
+    }
+
+    // Combat logika futtatása
+    private tryCombat(monster: Monster, hero: Hero): boolean {
+        if (!this.isAdjacent(monster, hero)) {
             return false;
         }
-        monster.setPosition(10,3);
-        this.renderer.renderMonster(monster, map);
 
-        console.log("Enemy elérte a szomszédos mezőt, respawnolt");
+        this.combatSystem.simulateCombat(hero, monster);
+
+        if (monster.isDead()) {
+            this.gameState.removeMonster(monster);
+            this.renderer.clearMonsters();
+        }
+
         return true;
+    }
+
+    // Harc logika futtatása, ha a hős lépett
+    private tryHeroCombat(): boolean {
+        if (this.lastMovementResult !== "MOVED") {
+            return false;
+        }
+
+        const monsters = this.gameState.getMonsters();
+        const hero = this.gameState.getHero();
+
+        for (const monster of monsters) {
+            if (this.tryCombat(monster, hero)) {
+                this.endTurn();
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    //Kör vége logika
+    private endTurn(): void {
+        this.gameState.incrementTurnCount();
+        console.log("Kör vége. Aktuális kör: ", this.gameState.getTurnCount());
+        this.lastMovementResult = "BLOCKED";
+        this.phase = "PLAYER_INPUT";
     }
 }
