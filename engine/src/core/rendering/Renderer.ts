@@ -247,7 +247,6 @@ constructor(container: HTMLElement) {
 
     // A jelenetből eltávolítja az összes szörny objektumot
     public clearMonsters(): void {
-        console.log("clearMonsters meghívva, db:", this.monsterObjects.length);
         for (const monsterObject of this.monsterObjects) {
             this.removeObject(monsterObject);
         }

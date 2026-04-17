@@ -15,7 +15,7 @@ const mapLoader = new MapLoader();
 const map = mapLoader.loadFromData(testMapData);
 
 const hero = new Hero(3, 1, 20, 5, 2);
-const monster = new Monster(10, 3, 10, 4, 1);
+const monster = new Monster(10, 3, 10, 25, 1);
 
 const gameState = new GameState(map, hero, [monster]);
 

@@ -8,12 +8,14 @@ export class GameState {
     private hero: Hero;
     private monsters: Monster[];
     private turnCount: number;
+    private isGameOver: boolean;
 
     constructor(map: Map, hero: Hero, monsters: Monster[]) {
         this.map = map;
         this.hero = hero;
         this.monsters = monsters;
         this.turnCount = 0;
+        this.isGameOver = false;
     }
 
     // Getterek
@@ -31,6 +33,14 @@ export class GameState {
 
     public getTurnCount(): number {
         return this.turnCount;
+    }
+
+    public getIsGameOver(): boolean {
+        return this.isGameOver;
+    }
+
+    public setGameOver(): void {
+        this.isGameOver = true;
     }
 
     // Megemeli a körök számát

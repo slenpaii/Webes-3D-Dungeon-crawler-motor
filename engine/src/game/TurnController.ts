@@ -30,6 +30,10 @@ export class TurnController {
 
 
     public handleInput(key: string): void {
+        if (this.gameState.getIsGameOver()) {
+           return;
+        }
+
         if (this.phase !== "PLAYER_INPUT") {
             return;
         }
@@ -43,6 +47,10 @@ export class TurnController {
     }
 
     public update(): void {
+        if (this.gameState.getIsGameOver()) {
+           return;
+        }
+
         if (this.phase !== "WAITING_FOR_PLAYER_ANIMATION") {
             return;
         }
@@ -153,6 +161,12 @@ export class TurnController {
             this.renderer.renderMonster(monster, map);
         }
 
+        // Gameover
+        if (hero.isDead()) {
+            console.log("A hős meghalt! Játék vége.");
+            this.gameState.setGameOver();
+        }
+
         // Harc ha a szörny lép felé
         if (this.tryCombat(monster, hero)) {
             return;
@@ -184,6 +198,11 @@ export class TurnController {
         if (monster.isDead()) {
             this.gameState.removeMonster(monster);
             this.renderer.clearMonsters();
+        }
+
+        if (hero.isDead()) {
+            console.log("A hős meghalt! Játék vége.");
+            this.gameState.setGameOver();
         }
 
         return true;
