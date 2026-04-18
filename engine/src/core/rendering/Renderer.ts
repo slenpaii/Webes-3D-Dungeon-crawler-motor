@@ -7,7 +7,6 @@
 
 // TODO: window.innerWidth és window.innerHeight -> this.container.clientWidth onResize container-alapú méretezésre refaktor
 // TODO: több helyen használt - duplikált eljárások (pl.: rendermonster,calculateCameraTarget) -> refaktor (gridToWorldPosition helper)
-// TODO: renderMonster későbbi átalakítása több szörny kezelésére refaktor
 
 import * as THREE from "three";
 import { Map } from "../map/Map";
@@ -26,7 +25,7 @@ private renderer!: THREE.WebGLRenderer;
 private animationFrameId: number | null = null; // Az aktuális requestAnimationFrame ID-ja, hogy szükség esetén le lehessen állítani a render ciklust
 
 private mapObjects: THREE.Object3D[] = []; // A jelenetben megjelenített térkép objektumok listája
-private monsterObjects: THREE.Object3D[] = []; // A jelenetben megjelenített szörny objektumok listája
+private monsterObjects: globalThis.Map<Monster, THREE.Object3D> = new globalThis.Map(); // Szörny példány -> jelenetbeli objektum
 
 private readonly tileSize: number = 1; // A tile-ok mérete a világban
 private readonly wallHeight: number = 1; // A falak magassága a világban
@@ -41,9 +40,23 @@ private cameraTargetPosition: THREE.Vector3 = new THREE.Vector3(); // A kamera m
 private cameraStartLookAt: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának kezdő nézési pozíciója
 private cameraTargetLookAt: THREE.Vector3 = new THREE.Vector3(); // A kamera mozgásának cél nézési pozíciója
 
+
+// Fények
 private torchLight!: THREE.PointLight;
 
 
+// Szörny mozgásához kapcsolódó változók
+private readonly monsterMoveDuration: number = 200; // A szörny mozgás animációjának időtartama (ms)
+
+private monsterAnimations: globalThis.Map<
+    Monster,
+    {
+        object: THREE.Object3D;
+        startPosition: THREE.Vector3;
+        targetPosition: THREE.Vector3;
+        startTime: number;
+    }
+    > = new globalThis.Map();
 
 
 constructor(container: HTMLElement) {
@@ -189,15 +202,22 @@ constructor(container: HTMLElement) {
 
     // A szörny kirajzolása a jelenetbe
     public renderMonster(monster: Monster, map: Map): void {
-        this.clearMonsters(); // Törlődnek a jelenetből az aktuálisan kirajzolt szörny objektumok, hogy csak a megadott szörny legyen kirajzolva
+        const existingMonsterObject = this.monsterObjects.get(monster);
+
+        if (existingMonsterObject) {
+            this.removeObject(existingMonsterObject);
+            this.monsterObjects.delete(monster);
+        }
+
         const monsterX = monster.getX();
         const monsterY = monster.getY();
 
-        const offsetX = Math.floor(map.width / 2);
-        const offsetZ = Math.floor(map.height / 2);
-
-        const worldX = (monsterX - offsetX) * this.tileSize;
-        const worldZ = (monsterY - offsetZ) * this.tileSize;
+        const worldPosition = this.gridToWorldPosition(
+            monsterX,
+            monsterY,
+            map,
+            this.tileSize / 2
+        );
 
         // Szörny megjelenítése (teszt jelleggel)
         const geometry = new THREE.ConeGeometry(
@@ -210,14 +230,10 @@ constructor(container: HTMLElement) {
 
         const monsterMesh = new THREE.Mesh(geometry, material);
 
-        monsterMesh.position.set(
-            worldX,
-            this.tileSize / 2,
-            worldZ
-        );
+        monsterMesh.position.copy(worldPosition);
 
         this.addObject(monsterMesh);
-        this.monsterObjects.push(monsterMesh);    
+        this.monsterObjects.set(monster, monsterMesh);    
     }
 
     // Új kamera-célállapot beállítása és a smooth animáció elindítása
@@ -247,12 +263,72 @@ constructor(container: HTMLElement) {
 
     // A jelenetből eltávolítja az összes szörny objektumot
     public clearMonsters(): void {
-        for (const monsterObject of this.monsterObjects) {
+        for (const monsterObject of this.monsterObjects.values()) {
             this.removeObject(monsterObject);
         }
 
-        this.monsterObjects = [];
+        this.monsterObjects.clear();
     }
+
+    // A jelenetből eltávolítja a megadott szörny objektumot
+    public clearMonster(monster: Monster): void {
+        const monsterObject = this.monsterObjects.get(monster);
+
+        if (!monsterObject) {
+            return;
+        }
+
+        this.removeObject(monsterObject);
+        this.monsterObjects.delete(monster);
+    }
+
+    // A szörny mozgásának animálása a jelenetben
+    public animateMonsterMove(monster: Monster, map: Map): void {
+        const monsterObject = this.monsterObjects.get(monster);
+
+        if(!monsterObject) {
+            this.renderMonster(monster, map);
+            return;
+        }
+
+        const targetPosition = this.gridToWorldPosition(
+            monster.getX(),
+            monster.getY(),
+            map,
+            this.tileSize / 2
+        );
+
+        this.monsterAnimations.set(monster, {
+            object: monsterObject,
+            startPosition: monsterObject.position.clone(),
+            targetPosition: targetPosition,
+            startTime: performance.now()
+        });
+    }
+
+    // A szörny mozgásának animációjának frissítése minden frame-ben
+    public updateMonsterAnimations(): void {
+    if (this.monsterAnimations.size === 0) {
+        return;
+    }
+    for (const [monster, animation] of this.monsterAnimations) {
+        const elapsed = performance.now() - animation.startTime;
+        const progress = Math.min(elapsed / this.monsterMoveDuration, 1);
+
+        const currentPosition = new THREE.Vector3().lerpVectors(
+            animation.startPosition,
+            animation.targetPosition,
+            progress
+        );
+
+        animation.object.position.copy(currentPosition);
+
+        if (progress >= 1) {
+            animation.object.position.copy(animation.targetPosition);
+            this.monsterAnimations.delete(monster);
+        }
+    }
+}
 
     // A megadott map tile-jait kirajzolja a jelenetbe
     public renderMap(map: Map): void {
@@ -339,6 +415,7 @@ constructor(container: HTMLElement) {
             this.animationFrameId = requestAnimationFrame(animate);
 
             this.updateCameraAnimation(); // Kamera animációjának frissítése, ha a kamera éppen mozog
+            this.updateMonsterAnimations(); // Szörny mozgás animációjának frissítése
             this.render();
     };
         animate();
@@ -419,5 +496,16 @@ constructor(container: HTMLElement) {
         );
 
         return tile;
+    }
+
+    // Rács koordinátákból világ koordináták kiszámítása a szörny mozgásához
+    private gridToWorldPosition(gridX: number, gridY: number, map: Map, worldY: number): THREE.Vector3 {
+        const offsetX = Math.floor(map.width / 2);
+        const offsetZ = Math.floor(map.height / 2);
+
+        const worldX = (gridX - offsetX) * this.tileSize;
+        const worldZ = (gridY - offsetZ) * this.tileSize;
+
+        return new THREE.Vector3(worldX, worldY, worldZ);
     }
 }

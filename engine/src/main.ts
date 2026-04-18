@@ -14,12 +14,13 @@ const renderer = new Renderer(container);
 const mapLoader = new MapLoader();
 const map = mapLoader.loadFromData(testMapData);
 
-const hero = new Hero(3, 1, 20, 5, 2);
-const monster = new Monster(10, 3, 10, 10, 1);
+const hero = new Hero(4, 11, 100, 5, 2);
+const monster1 = new Monster(10, 3, 10, 10, 1);
+const monster2 = new Monster(10, 19, 10, 10, 1);
 
-const gameState = new GameState(map, hero, [monster]);
+const gameState = new GameState(map, hero, [monster1, monster2]);
 
-const initialDirection = 2;
+const initialDirection = 1;
 const movementController = new MovementController(gameState, renderer, initialDirection);
 
 const turnController = new TurnController(gameState, movementController, renderer);
@@ -30,9 +31,9 @@ console.log("Map mérete:", map.width, "x", map.height);
 renderer.renderMap(gameState.getMap());
 renderer.renderHero(gameState.getHero(), gameState.getMap());
 
-// TODO: később több szörny kirajzolása a teljes monsters tömbből
-renderer.renderMonster(gameState.getMonsters()[0], gameState.getMap());
-
+for (const monster of gameState.getMonsters()) {
+    renderer.renderMonster(monster, gameState.getMap());
+}
 // TODO: induló direction kiszervezése közös konstansba / enumba
 renderer.updateCamera(gameState.getHero(), gameState.getMap(), movementController.getDirection());
 
