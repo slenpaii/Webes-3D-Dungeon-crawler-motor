@@ -40,8 +40,8 @@ export class TurnController {
     }
 
     public handleInput(key: string): void {
-        if (this.gameState.getIsGameOver()) {
-           return;
+        if (this.gameState.getIsGameOver() || this.gameState.getIsGameWon()) {
+            return;
         }
 
         if (this.phase !== "PLAYER_INPUT") {
@@ -57,8 +57,8 @@ export class TurnController {
     }
 
     public update(): void {
-        if (this.gameState.getIsGameOver()) {
-           return;
+        if (this.gameState.getIsGameOver() || this.gameState.getIsGameWon()) {
+            return;
         }
 
         if (this.phase !== "WAITING_FOR_PLAYER_ANIMATION") {
@@ -70,6 +70,10 @@ export class TurnController {
         }
 
         if (this.tryHeroCombat()) {
+            return;
+        }
+
+        if (this.checkWinCondition()) {
             return;
         }
 
@@ -400,6 +404,24 @@ export class TurnController {
                 this.endTurn();
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private checkWinCondition(): boolean {
+        const exitPosition = this.gameState.getExitPosition();
+
+        if (exitPosition === null) {
+            return false;
+        }
+
+        const hero = this.gameState.getHero();
+
+        if (hero.getX() === exitPosition.x && hero.getY() === exitPosition.y) {
+            console.log("A hős elérte a kijáratot! Győzelem!");
+            this.gameState.setGameWon();
+            return true;
         }
 
         return false;

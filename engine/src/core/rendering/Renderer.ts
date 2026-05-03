@@ -13,6 +13,7 @@ import { Map } from "../map/Map";
 import { TileType } from "../map/TileType";
 import { Hero } from "../game/Hero";
 import type { Monster } from "../game/Monster";
+import type { GridPosition } from "../map/MapData";
 
 export class Renderer {
 
@@ -26,6 +27,8 @@ private animationFrameId: number | null = null; // Az aktuális requestAnimation
 
 private mapObjects: THREE.Object3D[] = []; // A jelenetben megjelenített térkép objektumok listája
 private monsterObjects: globalThis.Map<Monster, THREE.Object3D> = new globalThis.Map(); // Szörny példány -> jelenetbeli objektum
+
+private exitObject: THREE.Object3D | null = null; // Az exit objektum
 
 private readonly tileSize: number = 1; // A tile-ok mérete a világban
 private readonly wallHeight: number = 1; // A falak magassága a világban
@@ -234,6 +237,36 @@ constructor(container: HTMLElement) {
 
         this.addObject(monsterMesh);
         this.monsterObjects.set(monster, monsterMesh);    
+    }
+
+    // Az exit kirajzolása a jelenetbe
+    public renderExit(exitPosition: GridPosition, map: Map): void {
+        if (this.exitObject) {
+            this.removeObject(this.exitObject);
+            this.exitObject = null;
+        }
+
+        const worldPosition = this.gridToWorldPosition(
+            exitPosition.x,
+            exitPosition.y,
+            map,
+            0.08
+        );
+
+        const geometry = new THREE.CylinderGeometry(
+            this.tileSize * 0.35,
+            this.tileSize * 0.35,
+            0.08,
+            24
+        );
+
+        const material = new THREE.MeshStandardMaterial({ color: 0x00ff66 });
+
+        const exitMesh = new THREE.Mesh(geometry, material);
+        exitMesh.position.copy(worldPosition);
+
+        this.addObject(exitMesh);
+        this.exitObject = exitMesh;
     }
 
     // Új kamera-célállapot beállítása és a smooth animáció elindítása

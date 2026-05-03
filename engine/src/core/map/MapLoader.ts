@@ -1,11 +1,12 @@
 import { Map } from "./Map";
 import { Tile } from "./Tile";
 import { TileType } from "./TileType";
+import type { MapData } from "./MapData";
 
 export class MapLoader {
 
     // Betölti a pályát a megadott adatok alapján
-    public loadFromData(data: any): Map {
+    public loadFromData(data: MapData): Map {
 
         // Ellenőrzi, hogy a szükséges mezők jelen vannak-e az adatokban
         if (!data || data.width === undefined || data.height === undefined || !Array.isArray(data.tiles)) {

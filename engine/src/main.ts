@@ -7,18 +7,59 @@ import { Monster } from "./core/game/Monster";
 import { GameState } from "./core/game/GameState";
 import { MovementController } from "./core/game/MovementController";
 import { TurnController } from "./game/TurnController";
+import { MapGenerator } from "./game/map-generation/MapGenerator";
+import type { MapData } from "./core/map/MapData";
+import { isReachable } from "./game/map-generation/MapValidation";
 
 const container = document.body;
 const renderer = new Renderer(container);
 
 const mapLoader = new MapLoader();
-const map = mapLoader.loadFromData(testMapData);
 
-const hero = new Hero(4, 11, 100, 5, 2);
-const monster1 = new Monster(10, 3, 10, 10, 1);
-const monster2 = new Monster(10, 19, 10, 10, 1);
+const USE_GENERATED_MAP = true;
 
-const gameState = new GameState(map, hero, [monster1, monster2]);
+let mapData: MapData = testMapData;
+
+if (USE_GENERATED_MAP) {
+    const generator = new MapGenerator();
+    mapData = generator.generate(21, 21);
+}
+
+const map = mapLoader.loadFromData(mapData);
+
+const heroStart = mapData.heroStart ?? { x: 4, y: 11 };
+const hero = new Hero(heroStart.x, heroStart.y, 100, 5, 2);
+
+
+const monsterSpawns = mapData.monsterSpawns ?? [
+    { x: 10, y: 3 },
+    { x: 10, y: 19 }
+];
+
+const monsters = monsterSpawns.map((spawn) => {
+    return new Monster(spawn.x, spawn.y, 10, 10, 1);
+});
+
+const exitPosition = mapData.exit ?? null;
+
+if (exitPosition) {
+    if (!map.isInside(exitPosition.x, exitPosition.y)) {
+        throw new Error("Exit pozíció pályán kívül van.");
+    }
+
+    if (!map.isWalkable(exitPosition.x, exitPosition.y)) {
+        throw new Error("Exit nem járható mezőn van.");
+    }
+
+    if (!isReachable(map, heroStart, exitPosition)) {
+        throw new Error("Exit nem elérhető a hős kezdőpozíciójából.");
+    }
+}
+
+const gameState = new GameState(map, hero, monsters, exitPosition);
+// TODO: debug log – később UI-ba kerül
+console.log(`Monsterek száma: ${monsters.length}`);
+
 
 const initialDirection = 1;
 const movementController = new MovementController(gameState, renderer, initialDirection);
@@ -29,6 +70,13 @@ console.log("Betöltött map:", map);
 console.log("Map mérete:", map.width, "x", map.height);
 
 renderer.renderMap(gameState.getMap());
+
+const currentExitPosition = gameState.getExitPosition();
+
+if (currentExitPosition) {
+    renderer.renderExit(currentExitPosition, gameState.getMap());
+}
+
 renderer.renderHero(gameState.getHero(), gameState.getMap());
 
 for (const monster of gameState.getMonsters()) {
