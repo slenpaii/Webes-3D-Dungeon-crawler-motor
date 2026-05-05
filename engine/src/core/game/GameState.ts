@@ -12,6 +12,7 @@ export class GameState {
     private isGameWon: boolean;
     private isGameOver: boolean;
     private exitPosition: GridPosition | null;
+    private exploredTiles: Set<string>;
 
     constructor(map: Map, hero: Hero, monsters: Monster[], exitPosition: GridPosition | null = null) {
         this.map = map;
@@ -21,6 +22,8 @@ export class GameState {
         this.isGameOver = false;
         this.isGameWon = false;
         this.exitPosition = exitPosition;
+        this.exploredTiles = new Set<string>();
+        this.markVisibleTilesExplored(hero.getX(), hero.getY(), 3);
     }
 
     // Getterek
@@ -68,6 +71,52 @@ export class GameState {
     // Szörny eltávolítása a játékból (halál esetén)
     public removeMonster(monster: Monster): void {
         this.monsters = this.monsters.filter(currentMonster => currentMonster !== monster);
+    }
+
+    public markTileExplored(x: number, y: number): void {
+        this.exploredTiles.add(`${x},${y}`);
+    }
+
+    public markVisibleTilesExplored(centerX: number, centerY: number, visionRange: number): void {
+        for (let y = centerY - visionRange; y <= centerY + visionRange; y++) {
+            for (let x = centerX - visionRange; x <= centerX + visionRange; x++) {
+                if (!this.map.isInside(x, y)) {
+                    continue;
+                }
+
+            if (!this.map.isWalkable(x, y)) {
+                continue;
+            }
+
+            if (!this.hasLineOfSight(centerX, centerY, x, y)) {
+                continue;
+            }
+
+            this.markTileExplored(x, y);
+            }
+        }
+    }
+
+    private hasLineOfSight(startX: number, startY: number, targetX: number, targetY: number): boolean {
+        const steps = Math.max(
+            Math.abs(targetX - startX),
+            Math.abs(targetY - startY)
+        );
+
+        for (let i = 1; i < steps; i++) {
+            const checkX = Math.round(startX + ((targetX - startX) * i) / steps);
+            const checkY = Math.round(startY + ((targetY - startY) * i) / steps);
+
+            if (!this.map.isWalkable(checkX, checkY)) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public isTileExplored(x: number, y: number): boolean {
+        return this.exploredTiles.has(`${x},${y}`);
     }
 
 }

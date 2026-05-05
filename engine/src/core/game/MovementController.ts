@@ -76,6 +76,9 @@ export class MovementController {
         // Megnézi, hogy járható-e a target tile (nincs-e fal/monster)
         if (map.isWalkable(targetX, targetY) && !this.isMonsterAt(targetX, targetY)) {
             hero.setPosition(targetX, targetY);
+
+            this.gameState.markVisibleTilesExplored(targetX, targetY, 3);
+
             this.renderer.renderHero(hero, map);
             this.renderer.updateCamera(hero, map, this.direction);
             return "MOVED";
@@ -116,6 +119,9 @@ export class MovementController {
         // Megnézi, hogy járható-e a target tile (nincs-e fal/monster)
         if (map.isWalkable(targetX, targetY) && !this.isMonsterAt(targetX, targetY)) {
             hero.setPosition(targetX, targetY);
+
+            this.gameState.markVisibleTilesExplored(targetX, targetY, 3);
+            
             this.renderer.renderHero(hero, map);
             this.renderer.updateCamera(hero, map, this.direction);
             return "MOVED";

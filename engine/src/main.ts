@@ -10,13 +10,14 @@ import { TurnController } from "./game/TurnController";
 import { MapGenerator } from "./game/map-generation/MapGenerator";
 import type { MapData } from "./core/map/MapData";
 import { isReachable } from "./game/map-generation/MapValidation";
+import { HudController } from "./game/ui/HudController";
 
 const container = document.body;
 const renderer = new Renderer(container);
 
 const mapLoader = new MapLoader();
 
-const USE_GENERATED_MAP = true;
+const USE_GENERATED_MAP = false;
 
 let mapData: MapData = testMapData;
 
@@ -57,6 +58,10 @@ if (exitPosition) {
 }
 
 const gameState = new GameState(map, hero, monsters, exitPosition);
+
+const hudController = new HudController(document.body);
+hudController.update(gameState);
+
 // TODO: debug log – később UI-ba kerül
 console.log(`Monsterek száma: ${monsters.length}`);
 
@@ -64,7 +69,7 @@ console.log(`Monsterek száma: ${monsters.length}`);
 const initialDirection = 1;
 const movementController = new MovementController(gameState, renderer, initialDirection);
 
-const turnController = new TurnController(gameState, movementController, renderer);
+const turnController = new TurnController(gameState, movementController, renderer, hudController);
 
 console.log("Betöltött map:", map);
 console.log("Map mérete:", map.width, "x", map.height);
@@ -94,10 +99,13 @@ window.addEventListener("keydown", (event) => {
     turnController.handleInput(event.key);
 });
 
+
 renderer.start();
 
 function gameLoop(): void {
     turnController.update();
+    hudController.update(gameState);
+
     requestAnimationFrame(gameLoop);
 }
 

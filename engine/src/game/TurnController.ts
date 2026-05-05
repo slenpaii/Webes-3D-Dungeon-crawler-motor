@@ -5,6 +5,7 @@ import { Hero } from "../core/game/Hero";
 import { Monster } from "../core/game/Monster";
 import { CombatSystem } from "./combat/CombatSystem";
 import type { MovementResult } from "../core/game/MovementController";
+import { HudController } from "./ui/HudController";
 
 type TurnPhase = "PLAYER_INPUT" | "WAITING_FOR_PLAYER_ANIMATION" | "ENEMY_TURN";
 
@@ -23,16 +24,18 @@ export class TurnController {
     private renderer: Renderer;
     private phase: TurnPhase;
     private combatSystem: CombatSystem;
+    private hudController: HudController;
     private lastMovementResult: MovementResult = "BLOCKED";
     private readonly SEARCH_TURN_LIMIT: number = 10;
 
 
-    constructor(gameState: GameState, movementController: MovementController, renderer: Renderer) {
+constructor(gameState: GameState, movementController: MovementController, renderer: Renderer, hudController: HudController) {
         this.gameState = gameState;
         this.movementController = movementController;
         this.renderer = renderer;
         this.phase = "PLAYER_INPUT";
         this.combatSystem = new CombatSystem();
+        this.hudController = hudController;
     }
 
     public getPhase(): TurnPhase {
@@ -380,6 +383,7 @@ export class TurnController {
         if (monster.isDead()) {
             this.gameState.removeMonster(monster);
             this.renderer.clearMonster(monster);
+            this.hudController.showMessage("Enemy defeated!");
         }
 
         if (hero.isDead()) {
